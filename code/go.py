@@ -29,9 +29,11 @@ if __name__ == "__main__":
     while not hasBeenCalibrated:
         img = ipc.read()
         decodedObjects = decode(img)
-        display(img, decodedObjects)
+        markDecodedObjects(img, decodedObjects)
 
         arenaInfo, hasBeenCalibrated = calibrate(decodedObjects)
+
+        display(img)
 
         if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit
@@ -41,10 +43,12 @@ if __name__ == "__main__":
         img = ipc.read()
         decodedObjects = decode(img)
 
-        display(img, decodedObjects)
+        markDecodedObjects(img, decodedObjects)
 
         blockCoordInfo = goSocket.recv(10000).decode()
         print(blockCoordInfo)
+
+        display(img)
 
         if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit

@@ -4,6 +4,7 @@ import numpy as np
 import urllib.request as urllib
 import time
 import socket
+import json
 
 from constants import *
 from common import *
@@ -48,6 +49,7 @@ def processDecodedObjects(lastN, N, decodedObjects):
 
     appendLastN(lastN, N, B0Coord, B1Coord)
 
+# checks if a points is within epsilon of the given avg
 def withinEpsilon(p,avg,eps):
     return abs(p.x - avg.x) <= eps and abs(p.y - avg.y) <= eps
 
@@ -72,18 +74,21 @@ def isStable(lastN, N):
 
     return True
 
-def convertPositionsToInches(arenaInfo, lastN):
+# MUST BE IN A STABLE STATE
+def getBlockCoords(arenaInfo, lastN):
     nonNones = list(map(removeNones, lastN))
     B0Coord = nonNones[0][-1]
     B1Coord = nonNones[1][-1]
+    return [B0Coord, B1Coord]
 
-    B0Inches = pixelCoordToInches(B0Coord, arenaInfo["topLeft"], arenaInfo["pixelsPerInchWidth"], arenaInfo["pixelsPerInchHeight"])
-    B1Inches = pixelCoordToInches(B1Coord, arenaInfo["topLeft"], arenaInfo["pixelsPerInchWidth"], arenaInfo["pixelsPerInchHeight"])
+def serializeBlockCoords(B0Inches, B1Inches):
+    return json.dumps([B0Inches.x, B0Inches.y, B1Inches.x, B1Inches.y]).encode()
 
-    returnList = list(map(str, [B0Inches.x, B0Inches.y, B1Inches.x, B1Inches.y]))
+def addArrivedText(img):
+    cv2.putText(img, "ARRIVED", Point(0,SEE_HEIGHT), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 2)
 
-    return ";".join(returnList)
-
+def addChangingText(img):
+    cv2.putText(img, "CHANGING", Point(0,SEE_HEIGHT), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 2)
 
 if __name__ == "__main__":
 
@@ -95,8 +100,6 @@ if __name__ == "__main__":
 
     prevStable = False
 
-    PRINT_THEM = False
-
     num_arrived = 0;
 
     hasBeenCalibrated = False
@@ -104,64 +107,69 @@ if __name__ == "__main__":
     seeSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     goSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
-    # bindSocket(seeSocket, SEE_SOCKET_ADDRESS)
+    bindSocket(seeSocket, SEE_SOCKET_ADDRESS)
 
     while not hasBeenCalibrated:
         img = ipc.read()
         decodedObjects = decode(img)
-        display(img, decodedObjects)
+        markDecodedObjects(img, decodedObjects)
 
         arenaInfo, hasBeenCalibrated = calibrate(decodedObjects)
+
+        display(img)
 
         if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit
 
+    lastStableB0Coord = None
+    lastStableB1Coord = None
 
     while True:
-        # if i % 10 == 0:
-        #     PRINT_THEM = True
-        # else:
-        #     PRINT_THEM = False
-
-        if (PRINT_THEM):
-            print(i, "-----------------")
 
         img = ipc.read()
         decodedObjects = decode(img)
 
-        display(img, decodedObjects)
-        processDecodedObjects(lastN, MOVING_N, decodedObjects)
+        markDecodedObjects(img, decodedObjects)
 
-        if (PRINT_THEM):
-            print("Last", MOVING_N, ":", lastN)
-            print(averageLastN(lastN))
+        processDecodedObjects(lastN, MOVING_N, decodedObjects)
 
         stable = isStable(lastN, MOVING_N)
 
         if not(prevStable) and stable:
-            print("~~~ARRIVED")
             num_arrived += 1
-            sendToGoString = convertPositionsToInches(arenaInfo, lastN)
-            print(sendToGoString)
             print(num_arrived,"-------------------")
+            print("~~~ARRIVED")
+            lastStableB0Coord, lastStableB1Coord = getBlockCoords(arenaInfo, lastN)
+            B0Inches,B1Inches = convertCoordsToInches(arenaInfo, lastStableB0Coord, lastStableB1Coord)
 
-            print(sendToGoString)
-            goSocket.sendto(sendToGoString.encode(), GO_SOCKET_ADDRESS)
+            print(serializeBlockCoords(B0Inches,B1Inches))
+
+            goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
             seeSocket.recv(10000)
             print("control returned")
 
+        # I'm printing the coord that was last marked as stable because this is what the robot will go off of
+        if stable:
+            markBlockCoord(img,lastStableB0Coord)
+            markBlockCoord(img,lastStableB1Coord)
+            addArrivedText(img)
 
         if prevStable and not(stable):
             print("~~~CHANGING")
 
+        if not(stable):
+            addChangingText(img)
+
         prevStable = stable
+
+        # put arena info on image
+        markArenaCornerCoords(img, arenaInfo)
+
+        # Display image
+        display(img)
 
         if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit
-
-        if (PRINT_THEM):
-            print()
-            print()
 
         i += 1
 

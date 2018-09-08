@@ -31,7 +31,7 @@ def decode(im) :
     return decodedObjects
 
 # Display barcode and QR code location
-def display(im, decodedObjects):
+def markDecodedObjects(im, decodedObjects):
     # Loop over all decoded objects
     for decodedObject in decodedObjects:
         points = decodedObject.polygon
@@ -48,14 +48,14 @@ def display(im, decodedObjects):
         for j in range(0,n):
             cv2.line(im, points[j], points[ (j+1) % n], (0,255,0), 3)
 
-    # Display results
-    small = cv2.resize(im,(0,0),fx=.6,fy=.6)
-    cv2.imshow("Results", small);
+    return im
 
 def bindSocket(socket, socketAddress):
     if os.path.exists(socketAddress):
         os.remove(socketAddress)
     socket.bind(socketAddress)
+
+ArenaInfo = namedtuple('ArenaInfo', ['topLeft', 'bottomRight', 'pixelsPerInchWidth', 'pixelsPerInchHeight'])
 
 def calibrate(decodedObjects):
     c0points = None
@@ -89,14 +89,32 @@ def calibrate(decodedObjects):
             maxX = max(point.x, maxX)
             maxY = max(point.y, maxY)
 
-        arenaInfo["topLeft"] = Point(minX,minY)
-        arenaInfo["bottomRight"] = Point(maxX,maxY)
-
-        arenaInfo["pixelsPerInchHeight"] = (maxY - minY)/ARENA_HEIGHT
-        arenaInfo["pixelsPerInchWidth"] = (maxX - minX)/ARENA_WIDTH
+        arenaInfo = ArenaInfo(Point(minX,minY), Point(maxX,maxY), (maxX - minX)/ARENA_WIDTH, (maxY - minY)/ARENA_HEIGHT)
 
 
     return arenaInfo, isCalibrated
 
+def display(img, scale=.4):
+    # Display image
+    small = cv2.resize(img,(0,0),fx=scale,fy=scale)
+    cv2.imshow("Results", small);
+
+def markBlockCoord(img, coord):
+    # radius is 20, color is red (b,g,r),-1 means a filled circle instead of outline
+    cv2.circle(img, (int(coord.x), int(coord.y)), 20, (0,0,255), -1)
+
+def markArenaCorner(img, coord):
+    cv2.circle(img, (int(coord.x), int(coord.y)), 10, (255,0,0), -1)
+
+def markArenaCornerCoords(img, arenaInfo):
+    markArenaCorner(img, arenaInfo.topLeft)
+    markArenaCorner(img, arenaInfo.bottomRight)
+
 def pixelCoordToInches(coord, topLeft, pixelToInchWidth, pixelToInchHeight):
     return Point((coord.x-topLeft.x)/pixelToInchWidth,(coord.y-topLeft.y)/pixelToInchHeight)
+
+def convertCoordsToInches(arenaInfo, B0Coord, B1Coord):
+    B0Inches = pixelCoordToInches(B0Coord, arenaInfo.topLeft, arenaInfo.pixelsPerInchWidth, arenaInfo.pixelsPerInchHeight)
+    B1Inches = pixelCoordToInches(B1Coord, arenaInfo.bottomRight, arenaInfo.pixelsPerInchWidth, arenaInfo.pixelsPerInchHeight)
+    return [B0Inches, B1Inches]
+
