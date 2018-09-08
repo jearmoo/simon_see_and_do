@@ -20,5 +20,5 @@ sudo apt-get install libzbar-dev libzbar0
 
 ### Install Python Dependencies
 ```
-pip -r install requirements.txt
+pip install -r requirements.txt
 ```
