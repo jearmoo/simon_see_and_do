@@ -4,24 +4,17 @@ import numpy as np
 import urllib.request as urllib
 import time
 
-class ipCamera:
-    def __init__(self, url):
-        self.url = url
-
-    def read(self):
-        imgResp=urllib.urlopen(self.url)
-        imgNp=np.array(bytearray(imgResp.read()),dtype=np.uint8)
-        img=cv2.imdecode(imgNp,-1)
-        return img
+from constants import *
+from classes import *
 
 def decode(im) :
     # Find barcodes and QR codes
     decodedObjects = pyzbar.decode(im)
 
     # Print results
-    for obj in decodedObjects:
-        print('Type : ', obj.type)
-        print('Data : ', obj.data,'\n')
+    # for obj in decodedObjects:
+    #     print('Type : ', obj.type)
+    #     print('Data : ', obj.data,'\n')
 
     return decodedObjects
 
@@ -32,7 +25,7 @@ def display(im, decodedObjects):
   for decodedObject in decodedObjects:
     points = decodedObject.polygon
 
-    print(points)
+    #print(points)
 
     # If the points do not form a quad, find convex hull
     if len(points) != 4 :
@@ -48,67 +41,123 @@ def display(im, decodedObjects):
   # Display results
   cv2.imshow("Results", im);
 
-url='http://10.251.82.37:8080/shot.jpg'
+def appendLastN(lastN,N,B0Coord,B1Coord):
+    lastN[0].append(B0Coord)
+    if (len(lastN[0]) > N):
+        lastN[0].pop(0)
 
-SEE_WIDTH = 1440
-SEE_HEIGHT = 1080
-
-DO_WIDTH = 1280
-DO_HEIGHT = 960
-
-FRAME_DELAY = 3000
-
-ESCAPE_KEY = 27
-
-
-B0_INDEX = 0
-B1_INDEX = 1
-
-B0_ID = "b0"
-B0_ID = "b1"
-
-def appendLast5(last_5,B0Coords,B1Coords):
-    last_5[0].append(B0Coords)
-    if (len(last_5[0]) > 5):
-        last_5[0].pop(0)
-
-    last_5[1].append(B1Coords)
-    if (len(last_5[1]) > 5):
-        last_5[1].pop(0)
+    lastN[1].append(B1Coord)
+    if (len(lastN[1]) > N):
+        lastN[1].pop(0)
 
 def removeNones(L):
     return list(filter(lambda x: x != None, L))
 
-def averageLast5(last5):
-    nonNones = map(removeNones, last5)
-    return list(map(lambda x: sum(x) / len(x), nonNones))
+def averagePoints(L):
+    if len(L) == 0:
+        return Point(None,None)
+    x_sum = 0
+    y_sum = 0
+    for x,y in L:
+        x_sum += x
+        y_sum += y
+    return Point(x_sum / len(L), y_sum / len(L))
 
-def processDecodedObjects(last5, decodedObjects):
-    B0Coords = None
-    B1Coords = None
+def averageLastN(lastN):
+    nonNones = map(removeNones, lastN)
+    return list(map(lambda x: averagePoints(x), nonNones))
+
+def processDecodedObjects(lastN, N, decodedObjects):
+    B0Coord = None
+    B1Coord = None
     for decodedObject in decodedObjects:
         if decodedObject.type == "QRCODE":
             if decodedObject.data.decode('utf-8') == B0_ID:
-                pass
-                # B0Coords = 
+                L = decodedObject.polygon
+                B0Coord = averagePoints(decodedObject.polygon)
+                # print(B0Coord)
+            elif decodedObject.data.decode('utf-8') == B1_ID:
+                B1Coord = averagePoints(decodedObject.polygon)
+                # print(B1Coord)
+
+    appendLastN(lastN, N, B0Coord, B1Coord)
+
+def withinEpsilon(p,avg,eps):
+    return abs(p.x - avg.x) <= eps and abs(p.y - avg.y) <= eps
+
+def average(L):
+    return sum(L) / len(L)
+
+def isStable(lastN, N):
+    B0WithoutNones = removeNones(lastN[0])
+    B1WithoutNones = removeNones(lastN[1])
+
+
+    # has to be more than 2 non-none values in last 5 recorded points
+    if len(B0WithoutNones) <= 2 or len(B1WithoutNones) <= 2:
+        return False
+
+    B0Average = averagePoints(B0WithoutNones)
+    B1Average = averagePoints(B1WithoutNones)
+
+    if (len(list(filter(lambda x: not(withinEpsilon(x,B0Average,STABLE_EPSILON)), B0WithoutNones))) > 0 or
+        len(list(filter(lambda x: not(withinEpsilon(x,B1Average,STABLE_EPSILON)), B1WithoutNones))) > 0):
+        return False
+
+    return True
 
 
 if __name__ == "__main__":
 
-    ipc = ipCamera(url)
+    ipc = ipCamera(URL)
 
-    # last5 = [[],[]]
+    lastN = [[],[]]
 
     i = 0
+
+    prevStable = False
+
+    PRINT_THEM = False
+
+    num_arrived = 0;
+
     while True:
-        print(i, "-----------------")
+        # if i % 10 == 0:
+        #     PRINT_THEM = True
+        # else:
+        #     PRINT_THEM = False
+
+        if (PRINT_THEM):
+            print(i, "-----------------")
+
         img = ipc.read()
         decodedObjects = decode(img)
         display(img, decodedObjects)
-        if cv2.waitKey(FRAME_DELAY) == ESCAPE_KEY:
+        processDecodedObjects(lastN, MOVING_N, decodedObjects)
+
+        if (PRINT_THEM):
+            print("Last", MOVING_N, ":", lastN)
+            print(averageLastN(lastN))
+
+        stable = isStable(lastN, MOVING_N)
+
+        if not(prevStable) and stable:
+            print("~~~ARRIVED")
+            num_arrived += 1
+            print(num_arrived,"-------------------")
+
+        if prevStable and not(stable):
+            print("~~~CHANGING")
+
+        prevStable = stable
+
+        if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit
+
+        if (PRINT_THEM):
+            print()
+            print()
+
         i += 1
-        print()
-        print()
 
     cv2.destroyAllWindows()
