@@ -21,16 +21,6 @@ def appendLastN(lastN,N,B0Coord,B1Coord):
 def removeNones(L):
     return list(filter(lambda x: x != None, L))
 
-def averagePoints(L):
-    if len(L) == 0:
-        return Point(None,None)
-    x_sum = 0
-    y_sum = 0
-    for x,y in L:
-        x_sum += x
-        y_sum += y
-    return Point(x_sum / len(L), y_sum / len(L))
-
 def averageLastN(lastN):
     nonNones = map(removeNones, lastN)
     return list(map(lambda x: averagePoints(x), nonNones))
@@ -42,10 +32,8 @@ def processDecodedObjects(lastN, N, decodedObjects):
         if decodedObject.type == "QRCODE":
             if decodedObject.data.decode('utf-8') == B0_ID:
                 B0Coord = averagePoints(decodedObject.polygon)
-                # print(B0Coord)
             elif decodedObject.data.decode('utf-8') == B1_ID:
                 B1Coord = averagePoints(decodedObject.polygon)
-                # print(B1Coord)
 
     appendLastN(lastN, N, B0Coord, B1Coord)
 
@@ -75,14 +63,14 @@ def isStable(lastN, N):
     return True
 
 # MUST BE IN A STABLE STATE
-def getBlockCoords(arenaInfo, lastN):
+def getBlockCoords(lastN):
     nonNones = list(map(removeNones, lastN))
     B0Coord = nonNones[0][-1]
     B1Coord = nonNones[1][-1]
     return [B0Coord, B1Coord]
 
 def serializeBlockCoords(B0Inches, B1Inches):
-    return json.dumps([B0Inches.x, B0Inches.y, B1Inches.x, B1Inches.y]).encode()
+    return json.dumps([B0Inches.x, B0Inches.y, B1Inches.x, B1Inches.y]).encode('utf-8')
 
 def addArrivedText(img):
     cv2.putText(img, "ARRIVED", Point(0,SEE_HEIGHT), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,255,0), 2)
@@ -95,8 +83,6 @@ if __name__ == "__main__":
     ipc = ipCamera(SEE_URL)
 
     lastN = [[],[]]
-
-    i = 0
 
     prevStable = False
 
@@ -121,6 +107,8 @@ if __name__ == "__main__":
         if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit
 
+    print("CALIBRATED!")
+
     lastStableB0Coord = None
     lastStableB1Coord = None
 
@@ -139,14 +127,16 @@ if __name__ == "__main__":
             num_arrived += 1
             print(num_arrived,"-------------------")
             print("~~~ARRIVED")
-            lastStableB0Coord, lastStableB1Coord = getBlockCoords(arenaInfo, lastN)
-            B0Inches,B1Inches = convertCoordsToInches(arenaInfo, lastStableB0Coord, lastStableB1Coord)
+            lastStableB0Coord, lastStableB1Coord = getBlockCoords(lastN)
+            print(lastStableB0Coord, lastStableB1Coord)
+            B0Inches, B1Inches = convertCoordsToInches(arenaInfo, lastStableB0Coord, lastStableB1Coord)
+            print(B0Inches, B1Inches)
 
             print(serializeBlockCoords(B0Inches,B1Inches))
 
-            goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
-            seeSocket.recv(10000)
-            print("control returned")
+            # goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
+            # seeSocket.recv(10000)
+            # print("control returned")
 
         # I'm printing the coord that was last marked as stable because this is what the robot will go off of
         if stable:
@@ -170,7 +160,5 @@ if __name__ == "__main__":
 
         if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
             break  # esc to quit
-
-        i += 1
 
     cv2.destroyAllWindows()

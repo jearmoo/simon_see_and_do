@@ -4,10 +4,14 @@ import pyzbar.pyzbar as pyzbar
 import cv2
 import numpy as np
 import os
+import math
 
 from constants import *
 
 Point = namedtuple('Point', ['x', 'y'])
+
+def pointToIntPoint(point):
+    return Point(int(point.x), int(point.y))
 
 class ipCamera:
     def __init__(self, url):
@@ -94,27 +98,60 @@ def calibrate(decodedObjects):
 
     return arenaInfo, isCalibrated
 
-def display(img, scale=.4):
+def display(img, scale=.4, name="Results"):
     # Display image
     small = cv2.resize(img,(0,0),fx=scale,fy=scale)
-    cv2.imshow("Results", small);
+    cv2.imshow(name, small);
 
 def markBlockCoord(img, coord):
     # radius is 20, color is red (b,g,r),-1 means a filled circle instead of outline
-    cv2.circle(img, (int(coord.x), int(coord.y)), 20, (0,0,255), -1)
+    cv2.circle(img, pointToIntPoint(coord), 20, (0,0,255), -1)
 
 def markArenaCorner(img, coord):
-    cv2.circle(img, (int(coord.x), int(coord.y)), 10, (255,0,0), -1)
+    cv2.circle(img, pointToIntPoint(coord), 10, (255,0,0), -1)
 
 def markArenaCornerCoords(img, arenaInfo):
     markArenaCorner(img, arenaInfo.topLeft)
     markArenaCorner(img, arenaInfo.bottomRight)
 
-def pixelCoordToInches(coord, topLeft, pixelToInchWidth, pixelToInchHeight):
-    return Point((coord.x-topLeft.x)/pixelToInchWidth,(coord.y-topLeft.y)/pixelToInchHeight)
+def markRobotCoords(img, front, back):
+    # front is purple and back is yellow
+    cv2.circle(img, pointToIntPoint(front), 10, (255,0,255), -1)
+    cv2.circle(img, pointToIntPoint(back), 10, (0,255,255), -1)
+
+# returns inch coordinates from top left of field
+def pixelCoordToInches(arenaInfo, coord):
+    return Point((coord.x-arenaInfo.topLeft.x)/arenaInfo.pixelsPerInchWidth,(coord.y-arenaInfo.topLeft.y)/arenaInfo.pixelsPerInchHeight)
 
 def convertCoordsToInches(arenaInfo, B0Coord, B1Coord):
-    B0Inches = pixelCoordToInches(B0Coord, arenaInfo.topLeft, arenaInfo.pixelsPerInchWidth, arenaInfo.pixelsPerInchHeight)
-    B1Inches = pixelCoordToInches(B1Coord, arenaInfo.bottomRight, arenaInfo.pixelsPerInchWidth, arenaInfo.pixelsPerInchHeight)
+    B0Inches = pixelCoordToInches(arenaInfo, B0Coord)
+    B1Inches = pixelCoordToInches(arenaInfo, B1Coord)
     return [B0Inches, B1Inches]
 
+def markQuad(img ,quad):
+    # Draw the quad
+    n = len(quad)
+    for j in range(0,n):
+        cv2.line(im, pointToIntPoint(quad[j]), pointToIntPoint(quad[ (j+1) % n]), (0,255,0), 3)
+
+def thDiff(th2, th1):
+    return math.atan2(math.sin(th2-th1), math.cos(th2-th1));
+
+def calcRobotRotation(RFCoord, RBCoord):
+    ydif = RFCoord.y - RBCoord.y
+    xdif = RFCoord.x - RBCoord.x
+
+    return math.atan2(ydif/xdif, xdif/ydif)
+
+def averagePoints(L):
+    if len(L) == 0:
+        return Point(None,None)
+    x_sum = 0
+    y_sum = 0
+    for x,y in L:
+        x_sum += x
+        y_sum += y
+    return Point(x_sum / len(L), y_sum / len(L))
+
+def distance(point1, point2):
+    return math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
