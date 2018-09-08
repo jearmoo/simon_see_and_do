@@ -1,0 +1,7 @@
+1.5" x 1.5" units
+
+block size
+
+18" x 18" field inner dimension
+
+21" x 21" field outer dimension
