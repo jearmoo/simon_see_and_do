@@ -1,8 +1,8 @@
 SEE_URL ='http://10.251.82.37:8080/shot.jpg'
 GO_URL = 'http://10.251.79.113:8080/shot.jpg'
 
-SEE_SOCKET_ADDRESS = "see_socket"
-GO_SOCKET_ADDRESS = "go_socket"
+SEE_SOCKET_ADDRESS = "/tmp/see_socket"
+GO_SOCKET_ADDRESS = "/tmp/go_socket"
 
 SEE_WIDTH = 1440
 SEE_HEIGHT = 1080

@@ -54,7 +54,7 @@ def display(im, decodedObjects):
 
 def bindSocket(socket, socketAddress):
     if os.path.exists(socketAddress):
-        os.remove(socketAddress)    
+        os.remove(socketAddress)
     socket.bind(socketAddress)
 
 def calibrate(decodedObjects):
@@ -89,13 +89,14 @@ def calibrate(decodedObjects):
             maxX = max(point.x, maxX)
             maxY = max(point.y, maxY)
 
-        arenaInfo["minX"] = minX
-        arenaInfo["minY"] = minY
-        arenaInfo["maxX"] = maxX
-        arenaInfo["maxY"] = maxY
+        arenaInfo["topLeft"] = Point(minX,minY)
+        arenaInfo["bottomRight"] = Point(maxX,maxY)
 
         arenaInfo["pixelsPerInchHeight"] = (maxY - minY)/ARENA_HEIGHT
         arenaInfo["pixelsPerInchWidth"] = (maxX - minX)/ARENA_WIDTH
 
 
     return arenaInfo, isCalibrated
+
+def pixelCoordToInches(coord, topLeft, pixelToInchWidth, pixelToInchHeight):
+    return Point((coord.x-topLeft.x)/pixelToInchWidth,(coord.y-topLeft.y)/pixelToInchHeight)

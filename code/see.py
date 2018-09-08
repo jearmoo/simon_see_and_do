@@ -77,13 +77,10 @@ def convertPositionsToInches(arenaInfo, lastN):
     B0Coord = nonNones[0][-1]
     B1Coord = nonNones[1][-1]
 
-    B0InchesWidth = (B0Coord.x - arenaInfo["minX"])/arenaInfo["pixelsPerInchWidth"]
-    B0InchesHeight = (B0Coord.y - arenaInfo["minY"])/arenaInfo["pixelsPerInchHeight"]
+    B0Inches = pixelCoordToInches(B0Coord, arenaInfo["topLeft"], arenaInfo["pixelsPerInchWidth"], arenaInfo["pixelsPerInchHeight"])
+    B1Inches = pixelCoordToInches(B1Coord, arenaInfo["topLeft"], arenaInfo["pixelsPerInchWidth"], arenaInfo["pixelsPerInchHeight"])
 
-    B1InchesWidth = (B1Coord.x - arenaInfo["minX"])/arenaInfo["pixelsPerInchWidth"]
-    B1InchesHeight = (B1Coord.y - arenaInfo["minY"])/arenaInfo["pixelsPerInchHeight"]
-
-    returnList = list(map(str, [B0InchesWidth, B0InchesHeight, B1InchesWidth, B1InchesHeight]))
+    returnList = list(map(str, [B0Inches.x, B0Inches.y, B1Inches.x, B1Inches.y]))
 
     return ";".join(returnList)
 
@@ -107,7 +104,7 @@ if __name__ == "__main__":
     seeSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     goSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
-    bindSocket(seeSocket, SEE_SOCKET_ADDRESS)
+    # bindSocket(seeSocket, SEE_SOCKET_ADDRESS)
 
     while not hasBeenCalibrated:
         img = ipc.read()
@@ -148,10 +145,11 @@ if __name__ == "__main__":
             print(sendToGoString)
             print(num_arrived,"-------------------")
 
+            print(sendToGoString)
             goSocket.sendto(sendToGoString.encode(), GO_SOCKET_ADDRESS)
             seeSocket.recv(10000)
             print("control returned")
-            
+
 
         if prevStable and not(stable):
             print("~~~CHANGING")
