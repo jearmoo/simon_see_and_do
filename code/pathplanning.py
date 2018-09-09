@@ -17,8 +17,8 @@ def dequeue(queue):
 
 def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
 
-    robotMinCoord = Point(RCenterCoord.x - ROBOT_TOLERANCE, RCenterCoord.y - ROBOT_TOLERANCE)
-    robotMaxCoord = Point(RCenterCoord.x + ROBOT_TOLERANCE, RCenterCoord.y + ROBOT_TOLERANCE)
+    robotMinCoord = Point(math.floor(RCenterCoord.x - ROBOT_TOLERANCE), math.ceil(RCenterCoord.y - ROBOT_TOLERANCE))
+    robotMaxCoord = Point(math.floor(RCenterCoord.x + ROBOT_TOLERANCE), math.ceil(RCenterCoord.y + ROBOT_TOLERANCE))
 
     obstacleCoord = B1CoordInches if (blockMoved[0] == B0_ID) else B0CoordInches
     obstacleMinCoord = Point(math.floor(obstacleCoord.x - BLOCK_TOLERANCE), math.ceil(obstacleCoord.y - ROBOT_TOLERANCE))
@@ -41,7 +41,7 @@ def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
 
             grid.append(row)
 
-        print(grid)
+        # print(grid)
         grid[start[1]][start[0]] = False
 
 
@@ -142,7 +142,7 @@ def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
             path = pathFirstHalf
         else:
             pathFirstHalf.pop(-1)
-            print(lastPoint, roundedEnd)
+            # print(lastPoint, roundedEnd)
             path = pathFirstHalf + BFS(lastPoint, roundedEnd)
 
         return path
@@ -152,6 +152,7 @@ def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
     firstPath = calcPath(RCenterCoord, goalBlock)
 
     secondPath = calcPath(goalBlock, blockMoved[1])
+    secondPath.pop(0)
 
     return firstPath + ["pickup"] + secondPath + ["drop"]
 

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import os
 import math
+import time
 
 from constants import *
 
@@ -120,15 +121,22 @@ def markRobotCoords(img, front, back):
     cv2.circle(img, pointToIntPoint(back), 10, (0,255,255), -1)
 
 # point is an (x,y) tuple
-def markPathSegment(img, point1, point2):
-    cv2.line(img, inchCoordToPixels(Point(*point1)), inchCoordToPixels(Point(*point2)), (255,0,0), 2)
+def markPathSegment(img, arenaInfo, point1, point2):
+    lineBegin = inchCoordToPixels(arenaInfo, point1)
+    lineEnd = inchCoordToPixels(arenaInfo, point2)
 
-def drawPath(img, RCenterCoord, path):
-    path[0] = (RCenterCoord.x,RCenterCoord.y)
+    # print(lineBegin, lineEnd)
+    cv2.line(img, lineBegin, lineEnd, (255,0,0), 3)
+
+def drawPath(img, arenaInfo, path):
+    # path[0] = (RCenterCoord.x,RCenterCoord.y)
     prev = path[0]
+    print(path)
+    # prev = RCenterCoord
     for i in range(1,len(path)):
-        markPathSegment(img, prev, path[i])
-        prev = path[i]
+        if not isinstance(path[i], str):
+            markPathSegment(img, arenaInfo, Point(*prev), Point(*path[i]))
+            prev = path[i]
 
 # returns inch coordinates from top left of field
 def pixelCoordToInches(arenaInfo, coord):
@@ -136,7 +144,7 @@ def pixelCoordToInches(arenaInfo, coord):
 
 # coord is a tuple
 def inchCoordToPixels(arenaInfo, coord):
-    return Point(coord.x*arenaInfo.pixelsPerInchWidth + arenaInfo.topLeft.x, coord.y * arenaInfo.pixelsPerInchHeight + arenaInfo.topLeft.y)
+    return pointToIntPoint(Point(coord.x*arenaInfo.pixelsPerInchWidth + arenaInfo.topLeft.x, coord.y * arenaInfo.pixelsPerInchHeight + arenaInfo.topLeft.y))
     # return Point((coord.x-arenaInfo.topLeft.x)/arenaInfo.pixelsPerInchWidth,(coord.y-arenaInfo.topLeft.y)/arenaInfo.pixelsPerInchHeight)
 
 def convertCoordsToInches(arenaInfo, B0Coord, B1Coord):
@@ -210,3 +218,13 @@ def distance(point1, point2):
 
 def pointsEqual(point1, point2):
     point1.x == point2.x and point1.y == point2.y
+
+if __name__ == "__main__":
+    blank_image = np.zeros((500,500,3), np.uint8)
+    arenaInfo = ArenaInfo(Point(0,0),Point(0,0),5, 5)
+    drawPath(blank_image, arenaInfo, Point(2,2), [(2,2), (2,4), (2,55), (70,55), (70,22)])
+    display(blank_image, .5)
+    cv2.waitKey(0)
+
+def saveTmpImage(img):
+    cv2.imwrite("/tmp/" + str(time.time()) + ".png", img)

@@ -30,6 +30,59 @@ def processGoDecodedObjects(decodedObjects):
 
     return [B0Coord, B1Coord, RFCoord, RBCoord]
 
+def findRobotRotation(ipc, arenaInfo):
+
+    # RFAvg, RBAvg
+    coords = [None, None]
+
+    foundEverything = False
+    while not(foundEverything):
+        img = ipc.read()
+        decodedObjects = decode(img)
+        markDecodedObjects(img, decodedObjects)
+        coordinates = processGoDecodedObjects(decodedObjects)[2:]
+
+        for i in range(len(coords)):
+            if coords[i] == None:
+                coords[i] = coordinates[i]
+
+        if not(None in coords):
+            foundEverything = True
+
+        # put arena info on image
+        # print(arenaInfo)
+        markArenaCornerCoords(img, arenaInfo)
+        display(img, .4, "rotation calibration")
+
+        if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
+            break
+
+    return calcRotation(coords[0], coords[1])
+
+def calibrateRotation(ipc, arenaInfo, goalRotation):
+    print("CALIBRATING ROTATION TO", goalRotation)
+    robotRotation = findRobotRotation(ipc, arenaInfo)
+    theta_diff = thDiff(goalRotation, robotRotation)
+    while abs(theta_diff) > ROTATION_TOLERANCE:
+        print(theta_diff)
+        rotateAmount = int(math.degrees(theta_diff))
+        if rotateAmount > 0:
+            print("left", rotateAmount)
+
+            if (COMMAND_ROBOT):
+                left(rotateAmount)
+
+            
+                
+        else:
+            print("right", -rotateAmount)
+
+            if (COMMAND_ROBOT):
+                right(-rotateAmount)
+        robotRotation = findRobotRotation(ipc,arenaInfo)
+        theta_diff = thDiff(goalRotation, robotRotation)
+
+
 if __name__ == "__main__":
 
     ipc = ipCamera(GO_URL)
@@ -40,6 +93,9 @@ if __name__ == "__main__":
     goSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
     bindSocket(goSocket, GO_SOCKET_ADDRESS)
+
+    print("-------CALIBRATING")
+
 
     while not hasBeenCalibrated:
         img = ipc.read()
@@ -56,10 +112,11 @@ if __name__ == "__main__":
     print("CALIBRATED!")
 
     while True:
+        print("WAITING ON SEE CODE")
         blockCoordInfo = goSocket.recv(10000)
-        finalPosInfo = json.loads(blockCoordInfo.decode('utf-8'))
+        goalInfo = json.loads(blockCoordInfo.decode('utf-8'))
 
-        # originalPosInfo = processGoDecodedObjects(decodedObjects)
+        print("RECEIVED THE GOAL ", goalInfo)
 
         B0GoalInches = Point(goalInfo[0], goalInfo[1])
         B1GoalInches = Point(goalInfo[2], goalInfo[3])
@@ -68,6 +125,8 @@ if __name__ == "__main__":
         foundEverything = False
         # [B0Avg, B1Avg, RFAvg, RBAvg]
         coords = [None, None, None, None]
+
+        print("FINDING BIG BRAINS")
         while not(foundEverything):
             img = ipc.read()
             decodedObjects = decode(img)
@@ -82,10 +141,11 @@ if __name__ == "__main__":
                 foundEverything = True
 
             # put arena info on image
+            # print(arenaInfo)
             markArenaCornerCoords(img, arenaInfo)
             display(img)
 
-            if cv2.waitKey(5000) == ESCAPE_KEY:
+            if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
                 break
 
         print("FOUND EVERYTHING")
@@ -94,11 +154,11 @@ if __name__ == "__main__":
         B0Coord,B1Coord,RFCoord,RBCoord = coords
 
         markRobotCoords(img, RFCoord, RBCoord)
-        markBlockCoord(img, B0Coord):
-        markBlockCoord(img, B1Coord):
+        markBlockCoord(img, B0Coord)
+        markBlockCoord(img, B1Coord)
         markArenaCornerCoords(img, arenaInfo)
 
-        display(img)
+        
 
 
         # find what we have to move
@@ -111,11 +171,20 @@ if __name__ == "__main__":
         distB0 = distance (B0GoalInches, B0CoordInches)
         distB1 = distance (B1GoalInches, B1CoordInches)
 
+        if (distB0 < 2 and distB1 < 2):
+            seeSocket.sendto(b'sup', SEE_SOCKET_ADDRESS)
+            print("DISTANCE MOVED IS TOO SMALL, CONTROL RETURNED")
+            continue
 
-        blockMoved = distB0 > distB1 ? (B0_ID, B0GoalInches) : (B1_ID, B1GoalInches)
+        blockMoved = (B0_ID, B0GoalInches) if distB0 > distB1 else (B1_ID, B1GoalInches)
 
         RCenterCoord = averagePoints([RFCoordInches, RBCoordInches])
+
+        print("PLANNING PATH")
         path = calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved)
+        print("PATH PLANNED!")
+
+        # print("CALCULATED A PATH")
 
         # if there is no path, continue and wait for another instruction
         if (path == None or len(path) <= 1):
@@ -124,13 +193,22 @@ if __name__ == "__main__":
             continue
 
         # draw the path
-        drawPath(img, RCenterCoord, path)
+        drawPath(img, arenaInfo, path)
 
-        # calculate the robot's rotation
+        # display the img
+        display(img)
+        saveTmpImage(img)
+
+        if cv2.waitKey(FRAME_DELAY_MS) == ESCAPE_KEY:
+            break
+
+        # # calculate the robot's rotation
         robotRotation = calcRotation(RFCoord,RBCoord)
 
+
         prevRobotRotation = robotRotation
-        prevPathPoint = (RCenterCoord.x, RCenterCoord.y)
+        # prevPathPoint = (RCenterCoord.x, RCenterCoord.y)
+        prevPathPoint = path[0]
         buffer = []
 
         print("EXECUTE THE PATH")
@@ -138,38 +216,68 @@ if __name__ == "__main__":
             if (path[i] == "pickup" or path[i] == "drop"):
                 moveDistance = sum(buffer)
                 buffer = []
-                # send movedistance
-                forward(int(moveDistance * 10))
-                wait()
+
+                reducedMove = max(int(moveDistance * 10) - FINAL_REDUCTION_TENTH_INCHES,0)
+                print("forward", reducedMove)
+
+                if (COMMAND_ROBOT):
+                    forward(reducedMove)
+                    
+
                 if (path[i] == "pickup"):
-                    pickup()
-                    wait()
+                    print("pickup")
+                    if (COMMAND_ROBOT):
+                        pickup()
+
+                    
+                        
                 if (path[i] == "drop"):
-                    drop()
-                    wait()
+                    print("drop")
+                    if (COMMAND_ROBOT):
+                        drop()
                 continue
 
 
-            pathRotation = calcRotation(path[i], prevPathPoint)
+            pathRotation = calcRotation(Point(*path[i]), Point(*prevPathPoint))
             angleDiff = thDiff(pathRotation, prevRobotRotation)
 
             if (angleDiff != 0):
                 moveDistance = sum(buffer)
                 buffer = []
 
-                rotateAmount = math.degrees(angleDiff)
+                rotateAmount = int(math.degrees(angleDiff))
 
                 # send over commands
-                forward(int(moveDistance * 10))
-                wait()
-                if rotateAmount > 0:
-                    right(rotateAmount)
-                    wait()
-                else:
-                    left(-rotateAmount)
-                    wait()
+                print("forward", int(moveDistance * 10))
 
-            buffer.append(distance(path[i],prevPathPoint))
+                if (COMMAND_ROBOT):
+                    forward(int(moveDistance * 10))
+
+                
+                
+
+                if rotateAmount > 0:
+
+                    print("left", rotateAmount)
+
+                    if (COMMAND_ROBOT):
+                        left(rotateAmount)
+
+                    
+                        
+                else:
+                    print("right", -rotateAmount)
+
+                    if (COMMAND_ROBOT):
+                        right(-rotateAmount)
+
+                if (CALIBRATE_ROTATION):
+                    calibrateRotation(ipc, arenaInfo, pathRotation)
+
+                    
+                        
+
+            buffer.append(distance(Point(*path[i]),Point(*prevPathPoint)))
             prevPathPoint = path[i]
             prevRobotRotation = pathRotation
 
@@ -177,15 +285,18 @@ if __name__ == "__main__":
         if len(buffer) > 0:
             moveDistance = sum(buffer)
             print("This should never happen happened")
-            forward(int(moveDistance * 10))
-            wait()
+            print("forward", int(moveDistance * 10))
 
-        if cv2.waitKey(5000) == ESCAPE_KEY:
-            break
+            if (COMMAND_ROBOT):
+                forward(int(moveDistance * 10))              
+
+            
 
         print("PATH EXECUTED")
 
-        seeSocket.sendto(b'', SEE_SOCKET_ADDRESS)
+        # print("PATH EXECUTED")
+
+        seeSocket.sendto(b'sup', SEE_SOCKET_ADDRESS)
 
 
     cv2.destroyAllWindows()

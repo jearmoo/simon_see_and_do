@@ -133,6 +133,8 @@ if __name__ == "__main__":
 
             print(serializeBlockCoords(B0Inches,B1Inches))
 
+            saveTmpImage(img)
+
             goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
             seeSocket.recv(10000)
             print("control returned")
