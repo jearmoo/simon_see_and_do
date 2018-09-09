@@ -89,6 +89,7 @@ def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, bl
 
             return result
 
+        endNode = None
         enqueue(queue, (start, None))
         while queue != []:
             node, prevDirection = dequeue(queue)
@@ -113,7 +114,10 @@ def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, bl
         # print(parentDict)
 
         path = []
-        current = endNode
+        if (endNode == None):
+            return None
+        else: 
+            current = endNode
 
         while current != start:
             # print(current)
