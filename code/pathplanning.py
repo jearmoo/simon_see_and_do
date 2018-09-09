@@ -15,9 +15,7 @@ def enqueue(queue,x):
 def dequeue(queue):
     return queue.pop(0)
 
-def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, blockMoved):
-    
-    RCenterCoord = averagePoints([RFCoordInches, RBCoordInches])
+def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
 
     robotMinCoord = Point(RCenterCoord.x - ROBOT_TOLERANCE, RCenterCoord.y - ROBOT_TOLERANCE)
     robotMaxCoord = Point(RCenterCoord.x + ROBOT_TOLERANCE, RCenterCoord.y + ROBOT_TOLERANCE)
@@ -41,7 +39,7 @@ def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, bl
             for j in range(ARENA_WIDTH):
                 row.append((1 < i < 16) or (1 < j < 16))
 
-            grid.append(row) 
+            grid.append(row)
 
         print(grid)
         grid[start[1]][start[0]] = False
@@ -134,10 +132,10 @@ def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, bl
         # TODO: for now rounding both point dimensions. improve it laster
         roundedStart = pointToRoundTuple(start)
 
-        
+
         roundedEnd = pointToRoundTuple(end)
 
-        
+
         pathFirstHalf = BFS(roundedStart,roundedEnd, True)
         lastPoint = pathFirstHalf[-1]
         if lastPoint == roundedEnd:
@@ -150,7 +148,7 @@ def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, bl
         return path
 
     goalBlock = B0CoordInches if blockMoved[0] == B0_ID else B1CoordInches
-    
+
     firstPath = calcPath(RCenterCoord, goalBlock)
 
     secondPath = calcPath(goalBlock, blockMoved[1])
@@ -158,9 +156,10 @@ def calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, bl
     return firstPath + ["pickup"] + secondPath + ["drop"]
 
 
-testRobotPos = Point(13,13)
-testB0 = Point(8,13)
-testB1 = Point(0,13)
-testBlockMoved = ("b1",(4,13))
-testPath = calcRobotPath(testRobotPos, testRobotPos, testB0, testB1, testBlockMoved)
-print(testPath)
+if __name__ == "__main__":
+    testRobotPos = Point(13,13)
+    testB0 = Point(8,13)
+    testB1 = Point(0,13)
+    testBlockMoved = ("b1",(4,13))
+    testPath = calcRobotPath(testRobotPos, testRobotPos, testB0, testB1, testBlockMoved)
+    print(testPath)

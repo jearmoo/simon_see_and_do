@@ -10,6 +10,7 @@ import json
 
 from constants import *
 from common import *
+from robot import *
 
 def processGoDecodedObjects(decodedObjects):
     B0Coord = None
@@ -59,7 +60,7 @@ if __name__ == "__main__":
         finalPosInfo = json.loads(blockCoordInfo.decode('utf-8'))
 
         # originalPosInfo = processGoDecodedObjects(decodedObjects)
- 
+
         B0GoalInches = Point(goalInfo[0], goalInfo[1])
         B1GoalInches = Point(goalInfo[2], goalInfo[3])
 
@@ -93,9 +94,12 @@ if __name__ == "__main__":
         B0Coord,B1Coord,RFCoord,RBCoord = coords
 
         markRobotCoords(img, RFCoord, RBCoord)
+        markBlockCoord(img, B0Coord):
+        markBlockCoord(img, B1Coord):
+        markArenaCornerCoords(img, arenaInfo)
 
-        # calculate the robot's rotation
-        robotRotation = calcRobotRotation(RFCoord,RBCoord)
+        display(img)
+
 
         # find what we have to move
 
@@ -109,20 +113,80 @@ if __name__ == "__main__":
 
 
         blockMoved = distB0 > distB1 ? (B0_ID, B0GoalInches) : (B1_ID, B1GoalInches)
-        path = calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, blockMoved)
 
-        # TODO: plan the path
+        RCenterCoord = averagePoints([RFCoordInches, RBCoordInches])
+        path = calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved)
 
-        # TODO: draw the path
+        # if there is no path, continue and wait for another instruction
+        if (path == None or len(path) <= 1):
+            print("NO PATH")
+            seeSocket.sendto(b'', SEE_SOCKET_ADDRESS)
+            continue
 
-        # TODO: tell see code we're done
-        display(img)
+        # draw the path
+        drawPath(img, RCenterCoord, path)
+
+        # calculate the robot's rotation
+        robotRotation = calcRotation(RFCoord,RBCoord)
+
+        prevRobotRotation = robotRotation
+        prevPathPoint = (RCenterCoord.x, RCenterCoord.y)
+        buffer = []
+
+        print("EXECUTE THE PATH")
+        for i in range(1,len(path)):
+            if (path[i] == "pickup" or path[i] == "drop"):
+                moveDistance = sum(buffer)
+                buffer = []
+                # send movedistance
+                forward(int(moveDistance * 10))
+                wait()
+                if (path[i] == "pickup"):
+                    pickup()
+                    wait()
+                if (path[i] == "drop"):
+                    drop()
+                    wait()
+                continue
+
+
+            pathRotation = calcRotation(path[i], prevPathPoint)
+            angleDiff = thDiff(pathRotation, prevRobotRotation)
+
+            if (angleDiff != 0):
+                moveDistance = sum(buffer)
+                buffer = []
+
+                rotateAmount = math.degrees(angleDiff)
+
+                # send over commands
+                forward(int(moveDistance * 10))
+                wait()
+                if rotateAmount > 0:
+                    right(rotateAmount)
+                    wait()
+                else:
+                    left(-rotateAmount)
+                    wait()
+
+            buffer.append(distance(path[i],prevPathPoint))
+            prevPathPoint = path[i]
+            prevRobotRotation = pathRotation
+
+        # this should never happen
+        if len(buffer) > 0:
+            moveDistance = sum(buffer)
+            print("This should never happen happened")
+            forward(int(moveDistance * 10))
+            wait()
 
         if cv2.waitKey(5000) == ESCAPE_KEY:
             break
-    seeSocket.sendto(b'', SEE_SOCKET_ADDRESS)
+
+        print("PATH EXECUTED")
+
+        seeSocket.sendto(b'', SEE_SOCKET_ADDRESS)
 
 
-
-
-    # cv2.destroyAllWindows()
+    cv2.destroyAllWindows()
+    ser.close()

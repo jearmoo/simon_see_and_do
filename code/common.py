@@ -119,9 +119,25 @@ def markRobotCoords(img, front, back):
     cv2.circle(img, pointToIntPoint(front), 10, (255,0,255), -1)
     cv2.circle(img, pointToIntPoint(back), 10, (0,255,255), -1)
 
+# point is an (x,y) tuple
+def markPathSegment(img, point1, point2):
+    cv2.line(img, inchCoordToPixels(Point(*point1)), inchCoordToPixels(Point(*point2)), (255,0,0), 2)
+
+def drawPath(img, RCenterCoord, path):
+    path[0] = (RCenterCoord.x,RCenterCoord.y)
+    prev = path[0]
+    for i in range(1,len(path)):
+        markPathSegment(img, prev, path[i])
+        prev = path[i]
+
 # returns inch coordinates from top left of field
 def pixelCoordToInches(arenaInfo, coord):
     return Point((coord.x-arenaInfo.topLeft.x)/arenaInfo.pixelsPerInchWidth,(coord.y-arenaInfo.topLeft.y)/arenaInfo.pixelsPerInchHeight)
+
+# coord is a tuple
+def inchCoordToPixels(arenaInfo, coord):
+    return Point(coord.x*arenaInfo.pixelsPerInchWidth + arenaInfo.topLeft.x, coord.y * arenaInfo.pixelsPerInchHeight + arenaInfo.topLeft.y)
+    # return Point((coord.x-arenaInfo.topLeft.x)/arenaInfo.pixelsPerInchWidth,(coord.y-arenaInfo.topLeft.y)/arenaInfo.pixelsPerInchHeight)
 
 def convertCoordsToInches(arenaInfo, B0Coord, B1Coord):
     B0Inches = pixelCoordToInches(arenaInfo, B0Coord)
@@ -137,11 +153,47 @@ def markQuad(img ,quad):
 def thDiff(th2, th1):
     return math.atan2(math.sin(th2-th1), math.cos(th2-th1));
 
-def calcRobotRotation(RFCoord, RBCoord):
-    ydif = RFCoord.y - RBCoord.y
-    xdif = RFCoord.x - RBCoord.x
+def calcRotation(frontCoord, backCoord):
+    # ydif = frontCoord.y - backCoord.y
+    # xdif = frontCoord.x - backCoord.x
 
-    return math.atan2(ydif/xdif, xdif/ydif)
+    # if (xdif == 0):
+    #     if ydif > 0:
+    #         return -math.pi / 2
+    #     elif ydif < 0:
+    #         return math.pi / 2
+    #     else:
+    #         return 0
+
+    # if (ydif == 0):
+    #     if xdif > 0:
+    #         return 0
+    #     elif xdif < 0:
+    #         return -math.pi
+    #     else:
+    #         return 0
+
+    # return -math.atan2(ydif / xdif, xdif / ydif)
+
+    ydif = abs(backCoord.y - frontCoord.y)
+    xdif = abs(backCoord.x - frontCoord.x)
+
+    try:
+        angle = math.atan2(ydif, xdif)
+    except:
+        angle = math.pi/2
+
+    if (frontCoord.y > backCoord.y):
+        if (frontCoord.x > backCoord.x):
+            angle *= -1
+        else:
+            angle -= math.pi
+    else:
+        if (frontCoord.x < backCoord.x):
+            angle = math.pi - angle
+
+    return angle
+
 
 def averagePoints(L):
     if len(L) == 0:
