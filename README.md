@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 ## Running
 ```
-cd code
+cd high_level_code
 python led.py
 python go.py
 python see.py
