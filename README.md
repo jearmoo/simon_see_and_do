@@ -22,3 +22,10 @@ sudo apt-get install libzbar-dev libzbar0
 ```
 pip install -r requirements.txt
 ```
+
+## Running
+```
+cd code
+python led.py
+python go.py
+python see.py

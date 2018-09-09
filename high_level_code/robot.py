@@ -13,7 +13,7 @@ def wait():
 
 def extra_wait():
     wait()
-    time.sleep(3)
+    time.sleep(1.5)
 
 def drop():
     ser.write('d'.encode())

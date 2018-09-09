@@ -37,7 +37,7 @@ def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
         for i in range(ARENA_HEIGHT):
             row = []
             for j in range(ARENA_WIDTH):
-                row.append((1 < i < 16) or (1 < j < 16))
+                row.append((1 < i < 16) and (1 < j < 16))
 
             grid.append(row)
 
@@ -113,7 +113,7 @@ def calcRobotPath(RCenterCoord, B0CoordInches, B1CoordInches, blockMoved):
 
         path = []
         if (endNode == None):
-            return None
+            return []
         else: 
             current = endNode
 

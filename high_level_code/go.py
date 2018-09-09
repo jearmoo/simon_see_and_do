@@ -91,6 +91,7 @@ if __name__ == "__main__":
 
     seeSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     goSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    # ledSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
     bindSocket(goSocket, GO_SOCKET_ADDRESS)
 
@@ -176,6 +177,8 @@ if __name__ == "__main__":
             print("DISTANCE MOVED IS TOO SMALL, CONTROL RETURNED")
             continue
 
+        # ledSocket.sendto("r".encode(), LED_SOCKET_ADDRESS)
+
         blockMoved = (B0_ID, B0GoalInches) if distB0 > distB1 else (B1_ID, B1GoalInches)
 
         RCenterCoord = averagePoints([RFCoordInches, RBCoordInches])
@@ -217,7 +220,11 @@ if __name__ == "__main__":
                 moveDistance = sum(buffer)
                 buffer = []
 
-                reducedMove = max(int(moveDistance * 10) - FINAL_REDUCTION_TENTH_INCHES,0)
+                if (path[i] == "pickup"):
+                    reducedMove = max(int(moveDistance * 10) - FINAL_PICKUP_REDUCTION_TENTH_INCHES, 0)
+                else:
+                    reducedMove = max(int(moveDistance * 10) - FINAL_DROP_REDUCTION_TENTH_INCHES, 0)
+
                 print("forward", reducedMove)
 
                 if (COMMAND_ROBOT):

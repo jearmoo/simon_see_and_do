@@ -91,6 +91,7 @@ if __name__ == "__main__":
 
     seeSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     goSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    ledSocket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
     bindSocket(seeSocket, SEE_SOCKET_ADDRESS)
 
@@ -135,18 +136,22 @@ if __name__ == "__main__":
 
             saveTmpImage(img)
 
+            ledSocket.sendto("r".encode(), LED_SOCKET_ADDRESS)
             goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
             seeSocket.recv(10000)
+            ledSocket.sendto("y".encode(), LED_SOCKET_ADDRESS)
             print("control returned")
 
         # I'm printing the coord that was last marked as stable because this is what the robot will go off of
         if stable:
+            ledSocket.sendto("y".encode(), LED_SOCKET_ADDRESS)
             markBlockCoord(img,lastStableB0Coord)
             markBlockCoord(img,lastStableB1Coord)
             addArrivedText(img)
 
         if prevStable and not(stable):
             print("~~~CHANGING")
+            ledSocket.sendto("t".encode(), LED_SOCKET_ADDRESS)
 
         if not(stable):
             addChangingText(img)
