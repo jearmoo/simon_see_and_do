@@ -48,7 +48,6 @@ def isStable(lastN, N):
     B0WithoutNones = removeNones(lastN[0])
     B1WithoutNones = removeNones(lastN[1])
 
-
     # has to be more than 2 non-none values in last 5 recorded points
     if len(B0WithoutNones) <= 2 or len(B1WithoutNones) <= 2:
         return False
@@ -134,9 +133,9 @@ if __name__ == "__main__":
 
             print(serializeBlockCoords(B0Inches,B1Inches))
 
-            # goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
-            # seeSocket.recv(10000)
-            # print("control returned")
+            goSocket.sendto(serializeBlockCoords(B0Inches, B1Inches), GO_SOCKET_ADDRESS)
+            seeSocket.recv(10000)
+            print("control returned")
 
         # I'm printing the coord that was last marked as stable because this is what the robot will go off of
         if stable:

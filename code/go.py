@@ -55,11 +55,13 @@ if __name__ == "__main__":
     print("CALIBRATED!")
 
     while True:
-        blockCoordInfo = goSocket.recv(10000).decode()
-        goalInfo = json.loads(blockCoordInfo.decode('utf-8'))
+        blockCoordInfo = goSocket.recv(10000)
+        finalPosInfo = json.loads(blockCoordInfo.decode('utf-8'))
 
-        B0Goal = Point(goalInfo[0], goalInfo[1])
-        B1Goal = Point(goalInfo[2], goalInfo[3])
+        # originalPosInfo = processGoDecodedObjects(decodedObjects)
+ 
+        B0GoalInches = Point(goalInfo[0], goalInfo[1])
+        B1GoalInches = Point(goalInfo[2], goalInfo[3])
 
         # TODO: get the position of the robot and blocks
         foundEverything = False
@@ -97,9 +99,17 @@ if __name__ == "__main__":
 
         # find what we have to move
 
-        
+        B0CoordInches = pixelCoordToInches(arenaInfo, B0Coord)
+        B1CoordInches = pixelCoordToInches(arenaInfo, B1Coord)
+        RFCoordInches = pixelCoordToInches(arenaInfo, RFCoord)
+        RBCoordInches = pixelCoordToInches(arenaInfo, RBCoord)
 
-        path = calcRobotPath(RFCoord, RBCoord, B0Coord, B1Coord)
+        distB0 = distance (B0GoalInches, B0CoordInches)
+        distB1 = distance (B1GoalInches, B1CoordInches)
+
+
+        blockMoved = distB0 > distB1 ? (B0_ID, B0GoalInches) : (B1_ID, B1GoalInches)
+        path = calcRobotPath(RFCoordInches, RBCoordInches, B0CoordInches, B1CoordInches, blockMoved)
 
         # TODO: plan the path
 

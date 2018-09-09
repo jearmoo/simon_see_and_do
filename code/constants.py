@@ -34,3 +34,6 @@ ARENA_WIDTH = 18
 
 # must be greater than 2
 MOVING_N = 5
+
+ROBOT_TOLERANCE = 2.5
+BLOCK_TOLERANCE = 1.5
